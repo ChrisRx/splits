@@ -2,7 +2,7 @@
 
 A simple terminal speedrun timer.
 
-<img src="./examples/example.png">
+<p align="center"><img src="./examples/example.png" width=480></p>
 
 ### Keybindings
 
