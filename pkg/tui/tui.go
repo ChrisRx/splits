@@ -1,8 +1,8 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
@@ -11,17 +11,64 @@ import (
 	"github.com/ChrisRx/splits/pkg/util"
 )
 
+var (
+	AheadStyle = tcell.StyleDefault.
+			Background(tcell.NewHexColor(0x2f3542)).
+			Foreground(tcell.ColorGreen)
+	BehindStyle = tcell.StyleDefault.
+			Background(tcell.NewHexColor(0x2f3542)).
+			Foreground(tcell.ColorRed)
+	GoldStyle = tcell.StyleDefault.
+			Background(tcell.NewHexColor(0x2f3542)).
+			Foreground(tcell.ColorGold)
+)
+
 func DrawSegments(scr tcell.Screen, style tcell.Style, segments []*run.Segment) {
 	w, _ := scr.Size()
+	var lastSegment, lastBest time.Duration
 	for i, segment := range segments {
-		elapsed := util.FormatDuration(segment.SplitTime)
-		if segment.SplitTime == 0 {
+		var delta, elapsed string
+		deltaStyle := style
+		switch {
+		case segment.SplitTime == 0:
+			delta = "-"
 			elapsed = "-"
+		case segment.BestSplitTime == 0:
+			delta = "-"
+			elapsed = util.FormatDuration(segment.SplitTime)
+		case segment.BestSplitTime != 0:
+			segmentDiff := segment.SplitTime - lastSegment
+			lastSegment = segment.SplitTime
+			bestDiff := segment.BestSplitTime - lastBest
+			lastBest = segment.BestSplitTime
+			elapsed = util.FormatDuration(segment.SplitTime)
+			saved := segmentDiff - bestDiff
+			saved = saved.Truncate(100 * time.Millisecond)
+			if saved < 0 {
+				saved *= -1
+			}
+			delta = util.FormatDuration(saved)
+			dt := segment.SplitTime - segment.BestSplitTime
+			switch {
+			case dt > 0:
+				deltaStyle = BehindStyle
+				delta = "+" + delta
+			default:
+				deltaStyle = AheadStyle
+				delta = "-" + delta
+			}
+			switch {
+			case saved == 0:
+				deltaStyle = style
+			case segmentDiff < bestDiff:
+				deltaStyle = GoldStyle
+			}
 		}
-		delta := segment.Delta()
-		padding2 := strings.Repeat(" ", 10-(len(elapsed)%10))
-		padding := strings.Repeat(" ", w-len(segment.Name)-len(delta)-len(elapsed)-(10-len(elapsed)))
-		util.EmitStr(scr, 0, 5+i, style, fmt.Sprintf("%s%s%s%s%s", segment.Name, padding, delta, padding2, elapsed))
+		padding := w - len(segment.Name) - len(delta) - len(elapsed) - (10 - len(elapsed))
+		padding2 := 10 - (len(elapsed) % 10)
+		util.EmitStr(scr, 0, 5+i, style, segment.Name)
+		util.EmitStr(scr, len(segment.Name)+padding, 5+i, deltaStyle, delta)
+		util.EmitStr(scr, len(segment.Name)+padding+len(delta)+padding2, 5+i, style, elapsed)
 	}
 }
 

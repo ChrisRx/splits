@@ -75,7 +75,7 @@ func (r *Run) Start() {
 	if !r.started.IsZero() {
 		return
 	}
-	r.started = time.Now().Add(-15 * time.Minute)
+	r.started = time.Now()
 }
 
 func (r *Run) Stop() {
